@@ -173,6 +173,45 @@ def profit_heatmap(params_tuple, util_vals, owned_vals, pct_rented_base):
 
 
 # ─────────────────────────────────────────────
+# Linked slider + number input helper
+# ─────────────────────────────────────────────
+
+def linked_slider(label, min_val, max_val, default, step, key,
+                  fmt="%d", help=None, max_val_dynamic=None):
+    """Render a slider and number input that stay in sync via session state."""
+    state_key = f"_v_{key}"
+    if state_key not in st.session_state:
+        st.session_state[state_key] = default
+
+    # Clamp stored value if dynamic max changed (e.g. pct_rented after pct_owned moves)
+    effective_max = max_val_dynamic if max_val_dynamic is not None else max_val
+    if st.session_state[state_key] > effective_max:
+        st.session_state[state_key] = effective_max
+
+    def from_slider():
+        st.session_state[state_key] = st.session_state[f"_sl_{key}"]
+
+    def from_input():
+        v = st.session_state[f"_ni_{key}"]
+        st.session_state[state_key] = int(max(min_val, min(effective_max, v)))
+
+    col_s, col_n = st.columns([3, 1])
+    with col_s:
+        st.slider(label, min_val, effective_max,
+                  value=st.session_state[state_key],
+                  step=step, key=f"_sl_{key}",
+                  on_change=from_slider, help=help)
+    with col_n:
+        st.number_input("value", min_val, effective_max,
+                        value=st.session_state[state_key],
+                        step=step, key=f"_ni_{key}",
+                        on_change=from_input,
+                        label_visibility="collapsed",
+                        format=fmt)
+    return st.session_state[state_key]
+
+
+# ─────────────────────────────────────────────
 # App
 # ─────────────────────────────────────────────
 
@@ -204,11 +243,11 @@ def main():
 
         # Fleet & Mix
         st.subheader("Fleet Size & Mix")
-        total_gpus = st.slider("Total GPUs", 1, 5000, 100, step=1)
+        total_gpus = linked_slider("Total GPUs", 1, 5000, 100, 1, "fleet")
         st.caption("Owned + Rented + On-Demand = 100%")
-        pct_owned  = st.slider("% Owned",  0, 100, 50, step=5)
-        pct_rented = st.slider("% Rented", 0, 100 - pct_owned,
-                               min(30, 100 - pct_owned), step=5)
+        pct_owned  = linked_slider("% Owned",  0, 100, 50, 1, "owned")
+        pct_rented = linked_slider("% Rented", 0, 100, 30, 1, "rented",
+                                   max_val_dynamic=100 - pct_owned)
         pct_on_demand = 100 - pct_owned - pct_rented
         st.info(f"On-Demand: **{pct_on_demand}%** ({int(total_gpus * pct_on_demand / 100)} GPUs)")
 
@@ -241,9 +280,9 @@ def main():
 
         # ── Demand ───────────────────────────
         st.subheader("Demand")
-        utilization  = st.slider("Expected Utilization", 0, 100, 70, step=1,
-                                  help="% of time GPUs are actively serving paying customers") / 100
-        time_horizon = st.slider("Analysis Horizon (months)", 6, 60, 24, step=6)
+        utilization  = linked_slider("Expected Utilization (%)", 0, 100, 70, 1, "util",
+                                     help="% of time GPUs are actively serving paying customers") / 100
+        time_horizon = linked_slider("Analysis Horizon (months)", 6, 60, 24, 1, "horizon")
 
     # ── Build params ─────────────────────────
     params = dict(
