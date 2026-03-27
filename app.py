@@ -229,17 +229,12 @@ def main():
         spec = GPU_CATALOG[gpu_name]
 
         with st.expander("Edit GPU Base Specs", expanded=(gpu_name == "Custom GPU")):
-            purchase_price        = st.number_input("Purchase Price ($/GPU)", 500, 200_000,
-                                                    int(spec.purchase_price), step=500,
-                                                    help="Used for owned depreciation and capital at risk")
-            power_watts           = st.number_input("TDP (Watts)", 50, 1500,
-                                                    int(spec.power_watts), step=10,
-                                                    help="GPU thermal design power (used to calculate owned power cost)")
-            customer_billing_rate = st.number_input("Customer Billing Rate ($/GPU/hr)",
-                                                    0.10, 100.0,
-                                                    float(spec.suggested_billing_rate),
-                                                    step=0.10, format="%.2f",
-                                                    help="Hourly rate you charge your customers")
+            purchase_price = st.number_input("Purchase Price ($/GPU)", 500, 200_000,
+                                             int(spec.purchase_price), step=500,
+                                             help="Used for owned depreciation and capital at risk")
+            power_watts    = st.number_input("TDP (Watts)", 50, 1500,
+                                             int(spec.power_watts), step=10,
+                                             help="GPU thermal design power (used to calculate owned power cost)")
 
         # Fleet & Mix
         st.subheader("Fleet Size & Mix")
@@ -274,6 +269,14 @@ def main():
             float(spec.on_demand_cost_hr), step=0.10, format="%.2f",
             help="Hourly cost to rent from a cloud provider (AWS, GCP, CoreWeave, etc.)",
         )
+
+        # ── Revenue ──────────────────────────
+        st.subheader("Revenue")
+        customer_billing_rate = st.number_input("Customer Billing Rate ($/GPU/hr)",
+                                                0.10, 100.0,
+                                                float(spec.suggested_billing_rate),
+                                                step=0.10, format="%.2f",
+                                                help="Hourly rate you charge your customers")
 
         if customer_billing_rate <= on_demand_cost_hr:
             st.warning("⚠️ Billing rate ≤ on-demand cost — on-demand GPUs lose money per hour!")
