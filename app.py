@@ -72,42 +72,66 @@ def calc_metrics(
     rented  = total_gpus * pct_rented
     on_dem  = total_gpus * pct_on_demand
 
-    # Owned: depreciation + colo + power (with PUE overhead)
+    # Owned: depreciation + colo + power (with PUE overhead) — always fixed
     power_cost   = (power_watts / 1000) * 24 * 30 * electricity_rate * PUE
     opex_per_gpu = colo_cost_per_gpu + power_cost
     owned_cost   = owned * (purchase_price / depreciation_months + opex_per_gpu)
 
-    # Rented: flat blended hourly rate × hours in month (all-in, no separate opex)
+    # Rented: flat blended hourly rate × hours in month — always fixed
     rented_cost  = rented * rental_price_hr * HOURS_PER_MONTH
 
-    # On-demand: variable, only incurred when serving customers
-    od_cost      = on_dem * utilization * HOURS_PER_MONTH * on_demand_cost_hr
+    # Priority utilization: fill owned first, then rented, then on-demand
+    # On-demand only activates once owned + rented are fully saturated
+    demanded_gpus  = total_gpus * utilization
+    od_active_gpus = max(0.0, demanded_gpus - owned - rented)
+    od_cost        = od_active_gpus * HOURS_PER_MONTH * on_demand_cost_hr
+
+    # Effective utilization per tier (for display)
+    owned_util_eff  = min(1.0, demanded_gpus / owned)           if owned  > 0 else 0.0
+    rented_util_eff = min(1.0, max(0.0, demanded_gpus - owned) / rented)  if rented > 0 else 0.0
+    od_util_eff     = (od_active_gpus / on_dem)                 if on_dem > 0 else 0.0
 
     fixed_costs    = owned_cost + rented_cost
     variable_costs = od_cost
     total_cost     = fixed_costs + variable_costs
 
-    # Revenue
-    gpu_hours = total_gpus * utilization * HOURS_PER_MONTH
+    # Revenue — based on total GPU-hours actually served
+    gpu_hours = demanded_gpus * HOURS_PER_MONTH
     revenue   = gpu_hours * customer_billing_rate
 
     # Profit
     profit = revenue - total_cost
     margin = (profit / revenue * 100) if revenue > 0 else float("-inf")
 
-    # Break-even utilization
-    rev_coeff = total_gpus * HOURS_PER_MONTH * customer_billing_rate
-    od_coeff  = on_dem    * HOURS_PER_MONTH * on_demand_cost_hr
-    net_coeff = rev_coeff - od_coeff
-    breakeven = (fixed_costs / net_coeff) if net_coeff > 0 else float("inf")
+    # Break-even utilization (piecewise: on-demand only kicks in above owned+rented threshold)
+    # Zone A (util ≤ owned+rented fraction): no on-demand cost
+    #   break-even_A = fixed_costs / (total_gpus × HOURS × rate)
+    # Zone B (util > threshold): on-demand active
+    #   break-even_B = (fixed_costs − HOURS×(owned+rented)×od_rate) / (HOURS×total_gpus×(rate−od_rate))
+    od_threshold = (owned + rented) / total_gpus if total_gpus > 0 else 1.0
+    if customer_billing_rate > 0 and total_gpus > 0:
+        be_A = fixed_costs / (total_gpus * HOURS_PER_MONTH * customer_billing_rate)
+        if be_A <= od_threshold:
+            breakeven = be_A
+        else:
+            net_rate = customer_billing_rate - on_demand_cost_hr
+            if net_rate > 0:
+                breakeven = (fixed_costs - HOURS_PER_MONTH * (owned + rented) * on_demand_cost_hr) \
+                            / (HOURS_PER_MONTH * total_gpus * net_rate)
+            else:
+                breakeven = float("inf")
+    else:
+        breakeven = float("inf")
 
     # Capital & risk
-    capital        = owned * purchase_price
-    payback        = (capital / profit) if profit > 0 else float("inf")
-    max_exposure   = fixed_costs  # total cost at 0% utilization (on-demand = $0)
+    capital      = owned * purchase_price
+    payback      = (capital / profit) if profit > 0 else float("inf")
+    max_exposure = fixed_costs  # total cost at 0% utilization (on-demand = $0)
 
     return dict(
         owned=owned, rented=rented, on_dem=on_dem,
+        owned_util_eff=owned_util_eff, rented_util_eff=rented_util_eff, od_util_eff=od_util_eff,
+        od_active_gpus=od_active_gpus,
         revenue=revenue, gpu_hours=gpu_hours,
         owned_cost=owned_cost, rented_cost=rented_cost, od_cost=od_cost,
         fixed_costs=fixed_costs, variable_costs=variable_costs, total_cost=total_cost,
@@ -314,11 +338,11 @@ def main():
             ("Revenue",                                m["revenue"],       m["revenue"] * 12,
              f"{m['gpu_hours']:,.0f} GPU-hrs/mo @ ${customer_billing_rate:.2f}/hr"),
             (f"  Owned  ({int(m['owned'])} GPUs)",    -m["owned_cost"],   -m["owned_cost"] * 12,
-             f"Depr ${purchase_price/depreciation_months:,.0f} + Opex ${m['opex_per_gpu']:,.0f} /GPU/mo (fixed)"),
+             f"Depr ${purchase_price/depreciation_months:,.0f} + Opex ${m['opex_per_gpu']:,.0f} /GPU/mo — {m['owned_util_eff']*100:.0f}% util (fixed cost)"),
             (f"  Rented ({int(m['rented'])} GPUs)",   -m["rented_cost"],  -m["rented_cost"] * 12,
-             f"${rental_price_hr:.2f}/GPU/hr blended (fixed)"),
+             f"${rental_price_hr:.2f}/GPU/hr blended — {m['rented_util_eff']*100:.0f}% util (fixed cost)"),
             (f"  On-Dem ({int(m['on_dem'])} GPUs)",   -m["od_cost"],      -m["od_cost"] * 12,
-             f"${on_demand_cost_hr:.2f}/hr × {utilization*100:.0f}% util (variable)"),
+             f"${on_demand_cost_hr:.2f}/hr — {m['od_util_eff']*100:.0f}% util, {m['od_active_gpus']:.0f} active GPUs (variable)"),
             ("Net Profit",                             m["profit"],        m["annual_profit"],
              f"{m['margin']:.1f}% gross margin"),
         ]
