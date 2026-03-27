@@ -678,6 +678,7 @@ def main():
             "Asset-Light (all on-demand)":   (  0,  0,100),
             "Balanced Mix (50/30/20)":       ( 50, 30, 20),
             "Base-load + Burst (60/20/20)":  ( 60, 20, 20),
+            "Rental + Overflow (0/80/20)":  ( 0, 80, 20),
             "Majority On-Demand (20/20/60)": ( 20, 20, 60),
             "Current Settings":              (pct_owned, pct_rented, pct_on_demand),
         }
@@ -686,7 +687,7 @@ def main():
             "Select scenarios",
             list(PRESETS.keys()),
             default=["All Owned (CapEx-heavy)", "Balanced Mix (50/30/20)",
-                     "Asset-Light (all on-demand)", "Current Settings"],
+                     "Asset-Light (all on-demand)", "Renal + Overflow (0/80/20)", "Current Settings"],
         )
 
         if not selected:
