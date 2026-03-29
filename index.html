@@ -1,0 +1,1756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPU Cloud Business Model</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #080a0f;
+      --surface:   #0e1118;
+      --surface2:  #131720;
+      --border:    #1c2133;
+      --border2:   #252d3e;
+      --amber:     #f5a623;
+      --amber-dim: rgba(245,166,35,0.15);
+      --green:     #3dd68c;
+      --green-dim: rgba(61,214,140,0.12);
+      --red:       #f5453d;
+      --blue:      #4a9eff;
+      --purple:    #a78bfa;
+      --text:      #c8cdd8;
+      --text-dim:  #5c6478;
+      --text-bright: #edf0f6;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.025) 3px, rgba(0,0,0,0.025) 4px);
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-icon {
+      font-size: 20px;
+      filter: drop-shadow(0 0 8px rgba(245,166,35,0.6));
+    }
+
+    .header-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 3px;
+      color: var(--text-bright);
+    }
+
+    .header-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      padding: 3px 7px;
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      letter-spacing: 1.5px;
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: blink 2s ease infinite;
+    }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ── Layout ── */
+    .app {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      height: calc(100vh - 53px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .sidebar::-webkit-scrollbar { width: 3px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border2); }
+
+    .section-hd {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 12px;
+      letter-spacing: 2.5px;
+      color: var(--amber);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-hd::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    .field-row {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      flex: 1;
+      height: 2px;
+      background: var(--border2);
+      outline: none;
+      cursor: pointer;
+      border-radius: 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      background: var(--amber);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 6px rgba(245,166,35,0.5);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      background: var(--amber);
+      cursor: pointer;
+      border: none;
+    }
+
+    .num-in {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      width: 64px;
+      padding: 4px 5px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text-bright);
+      text-align: right;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+
+    .num-in:focus { border-color: var(--amber); }
+    .num-in::-webkit-inner-spin-button,
+    .num-in::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    select {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 11px;
+      width: 100%;
+      padding: 6px 9px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text-bright);
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%235c6478'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+    }
+
+    select:focus { border-color: var(--amber); }
+
+    .mix-pill {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      padding: 2px 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+
+    .mix-bar {
+      height: 6px;
+      display: flex;
+      gap: 1px;
+      margin-top: 2px;
+    }
+
+    .mix-seg { transition: flex 0.3s; }
+
+    .warn-box {
+      font-size: 10px;
+      font-family: 'IBM Plex Mono', monospace;
+      color: #f5c842;
+      background: rgba(245,200,66,0.07);
+      border: 1px solid rgba(245,200,66,0.25);
+      padding: 5px 8px;
+      display: none;
+    }
+
+    /* ── Main ── */
+    .main {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Metric Strip ── */
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .mc {
+      padding: 14px 16px;
+      border-right: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mc:last-child { border-right: none; }
+
+    .mc::before {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--amber);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .mc.highlight::before { opacity: 1; }
+
+    .mc-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    .mc-val {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 19px;
+      font-weight: 600;
+      color: var(--text-bright);
+      line-height: 1;
+      transition: color 0.25s;
+    }
+
+    .mc-delta {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      margin-top: 3px;
+    }
+
+    #profit-mc.positive .mc-val { color: var(--green); }
+    #profit-mc.negative .mc-val { color: var(--red); }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .tab {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      padding: 11px 18px;
+      cursor: pointer;
+      color: var(--text-dim);
+      border-bottom: 2px solid transparent;
+      text-transform: uppercase;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    .tab-panel { display: none; flex: 1; overflow-y: auto; }
+    .tab-panel.active { display: block; }
+
+    .tab-panel::-webkit-scrollbar { width: 3px; }
+    .tab-panel::-webkit-scrollbar-track { background: transparent; }
+    .tab-panel::-webkit-scrollbar-thumb { background: var(--border2); }
+
+    /* ── Cards ── */
+    .grid {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .grid-2 { grid-template-columns: 1.45fr 1fr; }
+    .grid-2-eq { grid-template-columns: 1fr 1fr; }
+    .span-2 { grid-column: 1 / -1; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 16px 18px;
+    }
+
+    .card-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    /* ── Cost bars ── */
+    .cost-bar-row { margin-bottom: 14px; }
+
+    .cost-bar-hd {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 5px;
+    }
+
+    .cost-bar-lbl {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+    }
+
+    .cost-bar-amt {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+    }
+
+    .cost-bar-track {
+      height: 5px;
+      background: var(--border2);
+      overflow: hidden;
+    }
+
+    .cost-bar-fill {
+      height: 100%;
+      transition: width 0.4s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* ── P&L table ── */
+    .pnl-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+    }
+
+    .pnl-table th {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 500;
+      text-align: left;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pnl-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pnl-table tr:last-child td { border-bottom: none; color: var(--text-bright); font-weight: 600; }
+
+    .col-r { text-align: right; }
+    .c-pos { color: var(--green); }
+    .c-neg { color: var(--red); }
+    .c-dim { color: var(--text-dim); font-size: 10px; font-family: 'IBM Plex Sans', sans-serif; }
+
+    /* ── Per-GPU grid ── */
+    .per-gpu {
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      gap: 1px;
+      background: var(--border);
+      margin-top: 12px;
+    }
+
+    .pg-cell {
+      background: var(--surface2);
+      padding: 10px 12px;
+    }
+
+    .pg-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 3px; }
+    .pg-val { font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: var(--text-bright); }
+
+    /* ── Heatmap ── */
+    .heatmap-wrap {
+      overflow-x: auto;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+    }
+
+    .heatmap-wrap::-webkit-scrollbar { height: 3px; }
+    .heatmap-wrap::-webkit-scrollbar-track { background: transparent; }
+    .heatmap-wrap::-webkit-scrollbar-thumb { background: var(--border2); }
+
+    .hm-row { display: flex; margin-bottom: 1px; align-items: center; }
+    .hm-row-lbl { width: 36px; text-align: right; padding-right: 6px; color: var(--text-dim); flex-shrink: 0; }
+    .hm-cell {
+      width: 50px;
+      height: 28px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      cursor: default;
+      transition: opacity 0.15s;
+    }
+    .hm-cell:hover { opacity: 0.85; }
+
+    /* ── Risk metrics grid ── */
+    .risk-metrics {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 1px;
+      background: var(--border);
+    }
+
+    .risk-mc {
+      background: var(--surface2);
+      padding: 12px 14px;
+    }
+
+    .risk-mc-lbl {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    .risk-mc-val {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    /* ── Scenario checkboxes ── */
+    .scenario-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      color: var(--text);
+      padding: 6px 12px;
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.15s;
+    }
+
+    .check-item:hover { border-color: var(--amber); }
+
+    .check-item input[type="checkbox"] {
+      accent-color: var(--amber);
+      width: 13px;
+      height: 13px;
+      cursor: pointer;
+    }
+
+    .sc-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 10px;
+      font-size: 10px;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <span class="header-icon">⚡</span>
+  <span class="header-title">GPU Cloud Business Model</span>
+  <span class="header-badge">CALCULATOR</span>
+  <div class="header-right">
+    <span class="live-dot"></span>
+    <span>LIVE</span>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- ════════ SIDEBAR ════════ -->
+  <aside class="sidebar">
+
+    <div>
+      <div class="section-hd">GPU Type</div>
+      <div class="field">
+        <label>Select GPU</label>
+        <select id="gpu-select">
+          <option>NVIDIA H100 SXM (80GB)</option>
+          <option>NVIDIA H100 PCIe (80GB)</option>
+          <option>NVIDIA A100 SXM (80GB)</option>
+          <option>NVIDIA A100 PCIe (80GB)</option>
+          <option>NVIDIA L40S (48GB)</option>
+          <option>NVIDIA A10G (24GB)</option>
+          <option>Custom GPU</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Purchase Price ($/GPU)</label>
+        <div class="field-row">
+          <input type="range" id="pp-sl" min="500" max="100000" step="500" value="32000">
+          <input type="number" class="num-in" id="pp-ni" value="32000">
+        </div>
+      </div>
+      <div class="field">
+        <label>TDP (Watts)</label>
+        <div class="field-row">
+          <input type="range" id="pw-sl" min="50" max="1500" step="10" value="700">
+          <input type="number" class="num-in" id="pw-ni" value="700">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-hd">Fleet Size & Mix</div>
+      <div class="field">
+        <label>Total GPUs</label>
+        <div class="field-row">
+          <input type="range" id="tg-sl" min="1" max="5000" step="1" value="100">
+          <input type="number" class="num-in" id="tg-ni" value="100">
+        </div>
+      </div>
+      <div class="field">
+        <label>% Owned</label>
+        <div class="field-row">
+          <input type="range" id="po-sl" min="0" max="100" step="1" value="50">
+          <input type="number" class="num-in" id="po-ni" value="50">
+        </div>
+      </div>
+      <div class="field">
+        <label>% Rented</label>
+        <div class="field-row">
+          <input type="range" id="pr-sl" min="0" max="50" step="1" value="30">
+          <input type="number" class="num-in" id="pr-ni" value="30">
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px;">On-Demand</span>
+        <span class="mix-pill" id="od-pill">20% · 20 GPUs</span>
+      </div>
+      <div class="mix-bar">
+        <div class="mix-seg" id="ms-own" style="background:var(--blue); flex:50;"></div>
+        <div class="mix-seg" id="ms-rent" style="background:var(--purple); flex:30;"></div>
+        <div class="mix-seg" id="ms-od" style="background:var(--amber); flex:20;"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-hd">Owned GPU Costs</div>
+      <div class="field">
+        <label>Colo ($/GPU/mo)</label>
+        <div class="field-row">
+          <input type="range" id="co-sl" min="0" max="1000" step="10" value="120">
+          <input type="number" class="num-in" id="co-ni" value="120">
+        </div>
+      </div>
+      <div class="field">
+        <label>Electricity ($/kWh)</label>
+        <div class="field-row">
+          <input type="range" id="el-sl" min="0.01" max="0.50" step="0.01" value="0.08">
+          <input type="number" class="num-in" id="el-ni" value="0.08" step="0.01">
+        </div>
+      </div>
+      <div class="field">
+        <label>Depreciation (months)</label>
+        <div class="field-row">
+          <input type="range" id="dp-sl" min="12" max="84" step="6" value="36">
+          <input type="number" class="num-in" id="dp-ni" value="36">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-hd">Rented GPU Costs</div>
+      <div class="field">
+        <label>Blended Rental Price ($/GPU/hr)</label>
+        <div class="field-row">
+          <input type="range" id="rp-sl" min="0.10" max="20" step="0.01" value="2.74">
+          <input type="number" class="num-in" id="rp-ni" value="2.74" step="0.01">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-hd">On-Demand GPU Costs</div>
+      <div class="field">
+        <label>On-Demand Price ($/GPU/hr)</label>
+        <div class="field-row">
+          <input type="range" id="od-sl" min="0.10" max="20" step="0.10" value="3.50">
+          <input type="number" class="num-in" id="od-ni" value="3.50" step="0.10">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-hd">Revenue</div>
+      <div class="field">
+        <label>Customer Billing Rate ($/GPU/hr)</label>
+        <div class="field-row">
+          <input type="range" id="br-sl" min="0.10" max="50" step="0.10" value="4.50">
+          <input type="number" class="num-in" id="br-ni" value="4.50" step="0.10">
+        </div>
+      </div>
+      <div class="warn-box" id="rate-warn">⚠ Billing rate ≤ on-demand cost — OD GPUs lose money per hour!</div>
+    </div>
+
+    <div>
+      <div class="section-hd">Demand</div>
+      <div class="field">
+        <label>Expected Utilization (%)</label>
+        <div class="field-row">
+          <input type="range" id="ut-sl" min="0" max="100" step="1" value="70">
+          <input type="number" class="num-in" id="ut-ni" value="70">
+        </div>
+      </div>
+      <div class="field">
+        <label>Analysis Horizon (months)</label>
+        <div class="field-row">
+          <input type="range" id="hz-sl" min="6" max="60" step="1" value="24">
+          <input type="number" class="num-in" id="hz-ni" value="24">
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ════════ MAIN ════════ -->
+  <main class="main">
+
+    <!-- Metric Strip -->
+    <div class="metric-strip">
+      <div class="mc">
+        <div class="mc-label">Monthly Revenue</div>
+        <div class="mc-val" id="m-rev">—</div>
+      </div>
+      <div class="mc" id="profit-mc">
+        <div class="mc-label">Monthly Profit</div>
+        <div class="mc-val" id="m-profit">—</div>
+        <div class="mc-delta" id="m-margin">—</div>
+      </div>
+      <div class="mc">
+        <div class="mc-label">Annual Profit</div>
+        <div class="mc-val" id="m-annual">—</div>
+      </div>
+      <div class="mc">
+        <div class="mc-label">Break-even Util.</div>
+        <div class="mc-val" id="m-be">—</div>
+        <div class="mc-delta" id="m-cushion"></div>
+      </div>
+      <div class="mc">
+        <div class="mc-label">Capital Invested</div>
+        <div class="mc-val" id="m-cap">—</div>
+      </div>
+      <div class="mc">
+        <div class="mc-label" id="exp-label">Max Exposure</div>
+        <div class="mc-val" id="m-exp">—</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="dashboard">Dashboard</div>
+      <div class="tab" data-tab="sensitivity">Sensitivity</div>
+      <div class="tab" data-tab="risk">Risk</div>
+      <div class="tab" data-tab="scenarios">Scenarios</div>
+    </div>
+
+    <!-- Dashboard Panel -->
+    <div class="tab-panel active" id="panel-dashboard">
+      <div class="grid grid-2">
+
+        <!-- Util curve -->
+        <div class="card">
+          <div class="card-title">Revenue · Cost · Profit vs. Utilization</div>
+          <svg id="util-chart" width="100%" height="290" viewBox="0 0 580 270" preserveAspectRatio="none"></svg>
+          <div style="display:flex; gap:18px; margin-top:10px; font-size:10px; font-family:'IBM Plex Mono',monospace; flex-wrap:wrap;">
+            <span style="color:var(--blue);">── Revenue</span>
+            <span style="color:var(--red);">── Total Cost</span>
+            <span style="color:var(--amber);">╌ Fixed Cost</span>
+            <span style="color:var(--green);">── Profit</span>
+          </div>
+        </div>
+
+        <!-- Cost breakdown + per-GPU -->
+        <div class="card">
+          <div class="card-title">Monthly Cost Breakdown</div>
+          <div id="cost-bars"></div>
+          <div style="height:1px; background:var(--border); margin:14px 0;"></div>
+          <div class="card-title">Per-GPU Economics</div>
+          <div class="per-gpu">
+            <div class="pg-cell"><div class="pg-lbl">Revenue</div><div class="pg-val" id="g-rev">—</div></div>
+            <div class="pg-cell"><div class="pg-lbl">Cost</div><div class="pg-val" id="g-cost">—</div></div>
+            <div class="pg-cell"><div class="pg-lbl">Profit</div><div class="pg-val" id="g-profit">—</div></div>
+            <div class="pg-cell"><div class="pg-lbl">Owned Opex</div><div class="pg-val" id="g-opex">—</div></div>
+          </div>
+        </div>
+
+        <!-- P&L Table -->
+        <div class="card span-2">
+          <div class="card-title">Monthly P&L Summary</div>
+          <table class="pnl-table">
+            <thead>
+              <tr>
+                <th>Line Item</th>
+                <th class="col-r">Monthly</th>
+                <th class="col-r">Annual</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody id="pnl-body"></tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Sensitivity Panel -->
+    <div class="tab-panel" id="panel-sensitivity">
+      <div class="grid grid-2-eq">
+
+        <div class="card">
+          <div class="card-title">Profit & Break-even vs. % Owned</div>
+          <svg id="sens-own" width="100%" height="260" viewBox="0 0 520 245" preserveAspectRatio="none"></svg>
+          <div style="display:flex; gap:16px; margin-top:8px; font-size:10px; font-family:'IBM Plex Mono',monospace;">
+            <span style="color:var(--green);">── Monthly Profit</span>
+            <span style="color:var(--amber);">╌ Break-even %</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Profit & Margin vs. Billing Rate</div>
+          <svg id="sens-rate" width="100%" height="260" viewBox="0 0 520 245" preserveAspectRatio="none"></svg>
+          <div style="display:flex; gap:16px; margin-top:8px; font-size:10px; font-family:'IBM Plex Mono',monospace;">
+            <span style="color:var(--green);">── Monthly Profit</span>
+            <span style="color:var(--blue);">╌ Gross Margin %</span>
+          </div>
+        </div>
+
+        <div class="card span-2">
+          <div class="card-title">Profit Heatmap — Utilization × % Owned &nbsp;<span style="font-family:'IBM Plex Sans';font-size:10px;color:var(--text-dim);letter-spacing:0;">rented % held constant · white border = current</span></div>
+          <div class="heatmap-wrap" id="heatmap"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Risk Panel -->
+    <div class="tab-panel" id="panel-risk">
+      <div class="grid" style="grid-template-columns:1fr; gap:14px; padding:16px 16px 0;">
+        <div class="card">
+          <div class="card-title">Risk Metrics</div>
+          <div class="risk-metrics" id="risk-metrics"></div>
+        </div>
+      </div>
+      <div class="grid grid-2" style="padding:0 16px;">
+        <div class="card">
+          <div class="card-title">Max Exposure Breakdown at 0% Util</div>
+          <svg id="exp-donut" width="100%" height="200" viewBox="0 0 420 200" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <div class="card">
+          <div class="card-title">Max Exposure vs. % Owned</div>
+          <svg id="exp-vs-owned" width="100%" height="190" viewBox="0 0 500 190" preserveAspectRatio="none"></svg>
+          <div style="display:flex; gap:14px; margin-top:8px; font-size:10px; font-family:'IBM Plex Mono',monospace;">
+            <span style="color:var(--blue);">▪ Owned</span>
+            <span style="color:var(--purple);">▪ Rented</span>
+          </div>
+        </div>
+      </div>
+      <div class="grid" style="grid-template-columns:1fr; padding:0 16px;">
+        <div class="card">
+          <div class="card-title">Downside Scenario Analysis</div>
+          <div id="downside-table"></div>
+        </div>
+      </div>
+      <div class="grid" style="grid-template-columns:1fr; padding:0 16px 16px;">
+        <div class="card">
+          <div class="card-title">Cumulative P&L Over Analysis Horizon</div>
+          <svg id="cum-pnl" width="100%" height="260" viewBox="0 0 760 245" preserveAspectRatio="none"></svg>
+          <div style="display:flex; gap:18px; margin-top:10px; font-size:10px; font-family:'IBM Plex Mono',monospace;">
+            <span style="color:var(--green);">── Cumulative Profit (ex-CapEx)</span>
+            <span style="color:var(--blue);">╌ Cumulative Profit (incl. CapEx)</span>
+            <span style="color:var(--amber);">╌ Payback</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scenarios Panel -->
+    <div class="tab-panel" id="panel-scenarios">
+      <div class="grid" style="grid-template-columns:1fr; gap:14px; padding:16px 16px 0;">
+        <div class="card">
+          <div class="card-title">Select Scenarios to Compare</div>
+          <div class="scenario-checks">
+            <label class="check-item"><input type="checkbox" class="sc-cb" value="0" checked> All Owned (100/0/0)</label>
+            <label class="check-item"><input type="checkbox" class="sc-cb" value="1"> All Rented (0/100/0)</label>
+            <label class="check-item"><input type="checkbox" class="sc-cb" value="2"> Asset-Light (0/0/100)</label>
+            <label class="check-item"><input type="checkbox" class="sc-cb" value="3" checked> Balanced Mix (50/30/20)</label>
+            <label class="check-item"><input type="checkbox" class="sc-cb" value="4"> Base-load + Burst (60/20/20)</label>
+            <label class="check-item"><input type="checkbox" class="sc-cb" value="5" checked> Rental + Overflow (0/80/20)</label>
+            <label class="check-item"><input type="checkbox" class="sc-cb" value="6"> Majority On-Demand (20/20/60)</label>
+            <label class="check-item"><input type="checkbox" class="sc-cb" value="7" checked> Current Settings</label>
+          </div>
+        </div>
+      </div>
+      <div class="grid" style="grid-template-columns:1fr; padding:0 16px;">
+        <div class="card">
+          <div class="card-title">Scenario Comparison</div>
+          <div id="scenario-table"></div>
+        </div>
+      </div>
+      <div class="grid grid-2" style="padding:0 16px;">
+        <div class="card">
+          <div class="card-title">Monthly Profit by Scenario</div>
+          <svg id="sc-profit-bar" width="100%" height="260" viewBox="0 0 500 245" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="card">
+          <div class="card-title">Max Exposure by Scenario</div>
+          <svg id="sc-exp-bar" width="100%" height="260" viewBox="0 0 500 245" preserveAspectRatio="none"></svg>
+        </div>
+      </div>
+      <div class="grid" style="grid-template-columns:1fr; padding:0 16px 16px;">
+        <div class="card">
+          <div class="card-title">Monthly Profit vs. Utilization — All Selected Scenarios</div>
+          <svg id="sc-util" width="100%" height="280" viewBox="0 0 880 260" preserveAspectRatio="none"></svg>
+          <div class="sc-legend" id="sc-legend"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// Constants & catalog
+// ─────────────────────────────────────────────
+const HOURS = 730, PUE = 1.3;
+
+const CATALOG = {
+  "NVIDIA H100 SXM (80GB)":  { pp:32000, rp:2.74, od:3.50, pw:700,  br:4.50 },
+  "NVIDIA H100 PCIe (80GB)": { pp:26000, rp:2.19, od:2.80, pw:350,  br:3.50 },
+  "NVIDIA A100 SXM (80GB)":  { pp:16000, rp:1.37, od:2.00, pw:400,  br:2.60 },
+  "NVIDIA A100 PCIe (80GB)": { pp:13000, rp:1.10, od:1.80, pw:250,  br:2.30 },
+  "NVIDIA L40S (48GB)":      { pp:12000, rp:1.10, od:1.80, pw:350,  br:2.30 },
+  "NVIDIA A10G (24GB)":      { pp: 4000, rp:0.34, od:0.90, pw:150,  br:1.20 },
+  "Custom GPU":              { pp:10000, rp:0.68, od:1.50, pw:300,  br:2.00 },
+};
+
+// ─────────────────────────────────────────────
+// Core model
+// ─────────────────────────────────────────────
+function calc(p) {
+  const owned  = p.tg * p.po;
+  const rented = p.tg * p.pr;
+  const onDem  = p.tg * p.pd;
+
+  const powerCost = (p.pw / 1000) * 24 * 30 * p.el * PUE;
+  const opex      = p.co + powerCost;
+  const ownedCost = owned  * (p.pp / p.dp + opex);
+  const rentCost  = rented * p.rp * HOURS;
+
+  const demanded   = p.tg * p.ut;
+  const odActive   = Math.max(0, demanded - owned - rented);
+  const odCost     = odActive * HOURS * p.od;
+
+  const fixed    = ownedCost + rentCost;
+  const variable = odCost;
+  const total    = fixed + variable;
+
+  const gpuHrs = demanded * HOURS;
+  const rev    = gpuHrs * p.br;
+  const profit = rev - total;
+  const margin = rev > 0 ? profit / rev * 100 : -Infinity;
+
+  const odThresh = p.tg > 0 ? (owned + rented) / p.tg : 1;
+  let be;
+  if (p.br > 0 && p.tg > 0) {
+    const beA = fixed / (p.tg * HOURS * p.br);
+    if (beA <= odThresh) {
+      be = beA;
+    } else {
+      const netR = p.br - p.od;
+      be = netR > 0
+        ? (fixed - HOURS * (owned + rented) * p.od) / (HOURS * p.tg * netR)
+        : Infinity;
+    }
+  } else { be = Infinity; }
+
+  const capital = owned * p.pp;
+
+  return {
+    owned, rented, onDem, odActive,
+    ownedUtil:  owned  > 0 ? Math.min(1, demanded / owned)                        : 0,
+    rentedUtil: rented > 0 ? Math.min(1, Math.max(0, demanded - owned) / rented)  : 0,
+    odUtil:     onDem  > 0 ? odActive / onDem                                      : 0,
+    rev, gpuHrs, ownedCost, rentCost, odCost, fixed, variable, total,
+    profit, margin, annualProfit: profit * 12,
+    be, capital, maxExposure: fixed, opex,
+    revPerGpu:    p.tg ? rev    / p.tg : 0,
+    costPerGpu:   p.tg ? total  / p.tg : 0,
+    profitPerGpu: p.tg ? profit / p.tg : 0,
+  };
+}
+
+// ─────────────────────────────────────────────
+// Read inputs
+// ─────────────────────────────────────────────
+function getP() {
+  const po = +v('po') / 100;
+  const pr = +v('pr') / 100;
+  return {
+    tg: +v('tg'), po, pr, pd: Math.max(0, 1 - po - pr),
+    pp: +v('pp'), pw: +v('pw'),
+    co: +v('co'), el: +v('el'), dp: +v('dp'),
+    rp: +v('rp'), od: +v('od'), br: +v('br'),
+    ut: +v('ut') / 100,
+    hz: +v('hz'),
+  };
+}
+
+function v(k) { return document.getElementById(k + '-ni').value; }
+
+// ─────────────────────────────────────────────
+// Format helpers
+// ─────────────────────────────────────────────
+function fm(val) {
+  const a = Math.abs(val), s = val < 0 ? '-' : '';
+  if (a >= 1e6) return s + '$' + (a / 1e6).toFixed(2) + 'M';
+  return s + '$' + Math.round(a).toLocaleString();
+}
+
+function fmFull(val) {
+  const s = val < 0 ? '-' : '';
+  return s + '$' + Math.abs(Math.round(val)).toLocaleString();
+}
+
+// ─────────────────────────────────────────────
+// Util curve chart (SVG)
+// ─────────────────────────────────────────────
+function drawUtil(p, m) {
+  const svg = document.getElementById('util-chart');
+  const W = 580, H = 270;
+  const PAD = { t: 14, r: 18, b: 34, l: 68 };
+  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
+
+  // Build curve data
+  const pts = [];
+  for (let u = 0; u <= 100; u++) {
+    const mm = calc({ ...p, ut: u / 100 });
+    pts.push({ u, rev: mm.rev, cost: mm.total, fixed: mm.fixed, profit: mm.profit });
+  }
+
+  const allY = pts.flatMap(pt => [pt.rev, pt.cost, pt.profit]);
+  const yMin = Math.min(0, ...allY) * 1.06;
+  const yMax = Math.max(...allY) * 1.08;
+  const yRange = yMax - yMin || 1;
+
+  const xs = u => PAD.l + (u / 100) * cW;
+  const ys = y => PAD.t + cH - ((y - yMin) / yRange) * cH;
+
+  const path = key => pts.map((pt, i) =>
+    `${i ? 'L' : 'M'}${xs(pt.u).toFixed(1)},${ys(pt[key]).toFixed(1)}`).join('');
+
+  const zero = ys(0);
+  const bePct = Math.min(100, m.be * 100);
+  const utPct = p.ut * 100;
+
+  // Profit fill area
+  const aFill = pts.map((pt, i) =>
+    `${i ? 'L' : 'M'}${xs(pt.u).toFixed(1)},${ys(Math.max(0, pt.profit)).toFixed(1)}`).join('') +
+    ` L${xs(100).toFixed(1)},${zero.toFixed(1)} L${xs(0).toFixed(1)},${zero.toFixed(1)} Z`;
+
+  // Y-axis
+  let yAxis = '';
+  for (let i = 0; i <= 5; i++) {
+    const yv = yMin + yRange * (i / 5);
+    const yp = ys(yv).toFixed(1);
+    yAxis += `<line x1="${PAD.l}" x2="${PAD.l + cW}" y1="${yp}" y2="${yp}" stroke="var(--border)" stroke-opacity=".5"/>`;
+    yAxis += `<text x="${PAD.l - 6}" y="${yp}" text-anchor="end" dominant-baseline="middle" fill="var(--text-dim)" font-size="10" font-family="'IBM Plex Mono',monospace">${fm(yv)}</text>`;
+  }
+
+  let xAxis = '';
+  for (let u = 0; u <= 100; u += 20) {
+    xAxis += `<text x="${xs(u).toFixed(1)}" y="${PAD.t + cH + 20}" text-anchor="middle" fill="var(--text-dim)" font-size="10" font-family="'IBM Plex Mono',monospace">${u}%</text>`;
+  }
+
+  svg.innerHTML = `
+    <defs>
+      <clipPath id="cp1"><rect x="${PAD.l}" y="${PAD.t}" width="${cW}" height="${cH}"/></clipPath>
+    </defs>
+    <g clip-path="url(#cp1)">
+      <path d="${aFill}" fill="rgba(61,214,140,0.07)"/>
+      <path d="${path('rev')}"    fill="none" stroke="var(--blue)"  stroke-width="2"/>
+      <path d="${path('cost')}"   fill="none" stroke="var(--red)"   stroke-width="2"/>
+      <path d="${path('fixed')}"  fill="none" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <path d="${path('profit')}" fill="none" stroke="var(--green)" stroke-width="2"/>
+      ${zero >= PAD.t && zero <= PAD.t + cH ? `<line x1="${PAD.l}" x2="${PAD.l + cW}" y1="${zero}" y2="${zero}" stroke="var(--border2)"/>` : ''}
+      ${bePct <= 100 ? `
+        <line x1="${xs(bePct)}" x2="${xs(bePct)}" y1="${PAD.t}" y2="${PAD.t + cH}" stroke="var(--amber)" stroke-width="1" stroke-dasharray="4 3"/>
+        <text x="${xs(bePct) + 3}" y="${PAD.t + 11}" fill="var(--amber)" font-size="9" font-family="'IBM Plex Mono',monospace">BE:${bePct.toFixed(1)}%</text>
+      ` : ''}
+      <line x1="${xs(utPct)}" x2="${xs(utPct)}" y1="${PAD.t}" y2="${PAD.t + cH}" stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
+      <text x="${xs(utPct) + 3}" y="${PAD.t + 22}" fill="rgba(255,255,255,0.4)" font-size="9" font-family="'IBM Plex Mono',monospace">▶ ${utPct.toFixed(0)}%</text>
+    </g>
+    ${yAxis}${xAxis}
+    <line x1="${PAD.l}" x2="${PAD.l}" y1="${PAD.t}" y2="${PAD.t + cH}" stroke="var(--border2)"/>
+    <line x1="${PAD.l}" x2="${PAD.l + cW}" y1="${PAD.t + cH}" y2="${PAD.t + cH}" stroke="var(--border2)"/>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// Cost breakdown bars
+// ─────────────────────────────────────────────
+function drawCostBars(m) {
+  const total = m.ownedCost + m.rentCost + m.odCost;
+  const items = [
+    { lbl: 'Owned · Depr + Opex',       val: m.ownedCost, color: 'var(--blue)'   },
+    { lbl: 'Rented · Fixed Monthly',     val: m.rentCost,  color: 'var(--purple)' },
+    { lbl: 'On-Demand · Variable',       val: m.odCost,    color: 'var(--amber)'  },
+  ];
+  document.getElementById('cost-bars').innerHTML = items.map(item => {
+    const pct = total > 0 ? (item.val / total * 100).toFixed(1) : '0';
+    return `<div class="cost-bar-row">
+      <div class="cost-bar-hd">
+        <span class="cost-bar-lbl">${item.lbl}</span>
+        <span class="cost-bar-amt" style="color:${item.color}">${fmFull(item.val)}</span>
+      </div>
+      <div class="cost-bar-track">
+        <div class="cost-bar-fill" style="width:${pct}%; background:${item.color};"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────
+// P&L table
+// ─────────────────────────────────────────────
+function drawPnL(p, m) {
+  const rows = [
+    { lbl: 'Revenue', mo: m.rev, an: m.rev*12, note: `${Math.round(m.gpuHrs).toLocaleString()} GPU-hrs/mo @ $${p.br.toFixed(2)}/hr`, cls: 'c-pos' },
+    { lbl: `  Owned (${Math.round(m.owned)} GPUs)`,  mo: -m.ownedCost, an: -m.ownedCost*12, note:`Depr $${(p.pp/p.dp).toFixed(0)} + Opex $${m.opex.toFixed(0)}/GPU/mo · ${(m.ownedUtil*100).toFixed(0)}% util · fixed`, cls:'c-neg' },
+    { lbl: `  Rented (${Math.round(m.rented)} GPUs)`, mo: -m.rentCost, an: -m.rentCost*12, note:`$${p.rp.toFixed(2)}/GPU/hr · ${(m.rentedUtil*100).toFixed(0)}% util · fixed`, cls:'c-neg' },
+    { lbl: `  On-Demand (${Math.round(m.onDem)} GPUs)`, mo: -m.odCost, an: -m.odCost*12, note:`$${p.od.toFixed(2)}/hr · ${m.odActive.toFixed(0)} active GPUs · variable`, cls:'c-neg' },
+    { lbl: 'Net Profit', mo: m.profit, an: m.annualProfit, note: isFinite(m.margin) ? `${m.margin.toFixed(1)}% gross margin` : '—', cls: m.profit >= 0 ? 'c-pos' : 'c-neg' },
+  ];
+  document.getElementById('pnl-body').innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.lbl}</td>
+      <td class="col-r ${r.cls}">${fmFull(r.mo)}</td>
+      <td class="col-r ${r.cls}">${fmFull(r.an)}</td>
+      <td class="c-dim">${r.note}</td>
+    </tr>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// Dual-axis line chart helper
+// ─────────────────────────────────────────────
+function dualChart(svgId, pts, xKey, line1Key, line2Key, line1Color, line2Color, xFmt, onXNow) {
+  const svg = document.getElementById(svgId);
+  const W = 520, H = 245;
+  const PAD = { t: 14, r: 54, b: 34, l: 68 };
+  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
+
+  const xs = pts.map(pt => pt[xKey]);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs), xRange = xMax - xMin || 1;
+
+  const y1s = pts.map(pt => pt[line1Key]);
+  const y1Min = Math.min(0, ...y1s), y1Max = Math.max(...y1s), y1Range = y1Max - y1Min || 1;
+
+  const y2s = pts.map(pt => pt[line2Key]);
+  const y2Min = Math.min(...y2s), y2Max = Math.max(...y2s), y2Range = y2Max - y2Min || 1;
+
+  const xp = x => PAD.l + ((x - xMin) / xRange) * cW;
+  const y1p = y => PAD.t + cH - ((y - y1Min) / y1Range) * cH;
+  const y2p = y => PAD.t + cH - ((y - y2Min) / y2Range) * cH;
+
+  const p1 = pts.map((pt, i) => `${i ? 'L' : 'M'}${xp(pt[xKey]).toFixed(1)},${y1p(pt[line1Key]).toFixed(1)}`).join('');
+  const p2 = pts.map((pt, i) => `${i ? 'L' : 'M'}${xp(pt[xKey]).toFixed(1)},${y2p(pt[line2Key]).toFixed(1)}`).join('');
+
+  const zero1 = y1p(0);
+
+  let yLeft = '', yRight = '';
+  for (let i = 0; i <= 4; i++) {
+    const yv = y1Min + y1Range * (i / 4);
+    const ypos = y1p(yv).toFixed(1);
+    yLeft += `<line x1="${PAD.l}" x2="${PAD.l + cW}" y1="${ypos}" y2="${ypos}" stroke="var(--border)" stroke-opacity=".4"/>`;
+    yLeft += `<text x="${PAD.l - 6}" y="${ypos}" text-anchor="end" dominant-baseline="middle" fill="var(--text-dim)" font-size="10" font-family="'IBM Plex Mono',monospace">${fm(yv)}</text>`;
+
+    const yv2 = y2Min + y2Range * (i / 4);
+    const ypos2 = y2p(yv2).toFixed(1);
+    yRight += `<text x="${PAD.l + cW + 6}" y="${ypos2}" dominant-baseline="middle" fill="${line2Color}" font-size="9" font-family="'IBM Plex Mono',monospace" opacity=".7">${yv2.toFixed(0)}</text>`;
+  }
+
+  let xAxis = '';
+  for (let i = 0; i <= 4; i++) {
+    const xv = xMin + xRange * (i / 4);
+    xAxis += `<text x="${xp(xv).toFixed(1)}" y="${PAD.t + cH + 20}" text-anchor="middle" fill="var(--text-dim)" font-size="10" font-family="'IBM Plex Mono',monospace">${xFmt(xv)}</text>`;
+  }
+
+  const nowX = xp(onXNow).toFixed(1);
+
+  svg.innerHTML = `
+    <defs><clipPath id="cp-${svgId}"><rect x="${PAD.l}" y="${PAD.t}" width="${cW}" height="${cH}"/></clipPath></defs>
+    <g clip-path="url(#cp-${svgId})">
+      <path d="${p1}" fill="none" stroke="${line1Color}" stroke-width="2"/>
+      <path d="${p2}" fill="none" stroke="${line2Color}" stroke-width="1.5" stroke-dasharray="5 4"/>
+      ${zero1 >= PAD.t && zero1 <= PAD.t + cH ? `<line x1="${PAD.l}" x2="${PAD.l + cW}" y1="${zero1}" y2="${zero1}" stroke="var(--border2)"/>` : ''}
+      <line x1="${nowX}" x2="${nowX}" y1="${PAD.t}" y2="${PAD.t + cH}" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-dasharray="3 3"/>
+      <text x="${nowX}" y="${PAD.t + 10}" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="'IBM Plex Mono',monospace">▶</text>
+    </g>
+    ${yLeft}${yRight}${xAxis}
+    <line x1="${PAD.l}" x2="${PAD.l}" y1="${PAD.t}" y2="${PAD.t + cH}" stroke="var(--border2)"/>
+    <line x1="${PAD.l}" x2="${PAD.l + cW}" y1="${PAD.t + cH}" y2="${PAD.t + cH}" stroke="var(--border2)"/>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// Sensitivity charts
+// ─────────────────────────────────────────────
+function drawSensOwned(p) {
+  const pts = [];
+  for (let own = 0; own <= 100; own += 5) {
+    const rent = Math.min(100 - own, Math.round(p.pr * 100));
+    const od   = 100 - own - rent;
+    const mm = calc({ ...p, po: own/100, pr: rent/100, pd: od/100 });
+    pts.push({ own, profit: mm.profit, be: Math.min(100, mm.be * 100) });
+  }
+  dualChart('sens-own', pts, 'own', 'profit', 'be',
+    'var(--green)', 'var(--amber)',
+    x => x + '%', Math.round(p.po * 100));
+}
+
+function drawSensRate(p) {
+  const rMin = Math.max(0.10, p.od * 0.5);
+  const rMax = p.br * 2.5;
+  const pts = [];
+  for (let i = 0; i <= 60; i++) {
+    const r = rMin + (rMax - rMin) * (i / 60);
+    const mm = calc({ ...p, br: r });
+    pts.push({ rate: r, profit: mm.profit, margin: Math.min(100, Math.max(-100, mm.margin)) });
+  }
+  // Highlight OD cost line
+  const svg = document.getElementById('sens-rate');
+  dualChart('sens-rate', pts, 'rate', 'profit', 'margin',
+    'var(--green)', 'var(--blue)',
+    x => '$' + x.toFixed(2), p.br);
+
+  // Append OD cost line
+  const W = 520, PAD = { t: 14, r: 54, b: 34, l: 68 };
+  const cW = W - PAD.l - PAD.r, cH = 245 - PAD.t - PAD.b;
+  const rRange = rMax - rMin;
+  const odX = (PAD.l + ((p.od - rMin) / rRange) * cW).toFixed(1);
+  if (p.od >= rMin && p.od <= rMax) {
+    svg.innerHTML += `
+      <g clip-path="url(#cp-sens-rate)">
+        <line x1="${odX}" x2="${odX}" y1="${PAD.t}" y2="${PAD.t + cH}" stroke="var(--red)" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
+        <text x="${odX}" y="${PAD.t + cH - 6}" text-anchor="middle" fill="var(--red)" font-size="9" font-family="'IBM Plex Mono',monospace" opacity=".8">OD</text>
+      </g>`;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Heatmap
+// ─────────────────────────────────────────────
+function drawHeatmap(p) {
+  const UTILS  = [10,20,30,40,50,60,70,80,90,100];
+  const OWNEDS = [0,10,20,30,40,50,60,70,80,90,100];
+
+  // Build Z
+  const Z = [];
+  let zMin = Infinity, zMax = -Infinity;
+  for (const u of UTILS) {
+    const row = [];
+    for (const own of OWNEDS) {
+      const rent = Math.min(100 - own, Math.round(p.pr * 100));
+      const od   = 100 - own - rent;
+      const mm = calc({ ...p, ut: u/100, po: own/100, pr: rent/100, pd: od/100 });
+      row.push(mm.profit);
+      if (mm.profit < zMin) zMin = mm.profit;
+      if (mm.profit > zMax) zMax = mm.profit;
+    }
+    Z.push(row);
+  }
+
+  const zRange = zMax - zMin || 1;
+  const curOwn = Math.round(p.po * 100);
+  const curUtil = Math.round(p.ut * 100);
+
+  // Find closest row/col for current marker
+  const closestOwn  = OWNEDS.reduce((a, b) => Math.abs(b - curOwn)  < Math.abs(a - curOwn)  ? b : a);
+  const closestUtil = UTILS.reduce( (a, b) => Math.abs(b - curUtil) < Math.abs(a - curUtil) ? b : a);
+
+  let html = '';
+
+  // Header
+  html += `<div class="hm-row">
+    <div class="hm-row-lbl" style="font-size:9px;color:var(--text-dim);">util↑</div>`;
+  for (const own of OWNEDS)
+    html += `<div class="hm-cell" style="color:var(--text-dim);">${own}%</div>`;
+  html += '</div>';
+
+  // Rows (highest util at top)
+  for (let i = UTILS.length - 1; i >= 0; i--) {
+    const u = UTILS[i];
+    html += `<div class="hm-row">
+      <div class="hm-row-lbl">${u}%</div>`;
+    for (let j = 0; j < OWNEDS.length; j++) {
+      const v = Z[i][j];
+      const t = (v - zMin) / zRange;
+      // RdYlGn-style
+      let r, g, b;
+      if (t < 0.5) {
+        r = 210; g = Math.round(t * 2 * 170); b = 40;
+      } else {
+        r = Math.round((1 - (t-0.5)*2) * 210); g = 175; b = 40;
+      }
+      const alpha = 0.55 + t * 0.45;
+      const lbl = Math.abs(v) >= 1e6 ? `$${(v/1e6).toFixed(1)}M` : `$${Math.round(v/1000)}K`;
+      const isCurrent = OWNEDS[j] === closestOwn && u === closestUtil;
+      const border = isCurrent ? '2px solid #fff' : '1px solid transparent';
+      html += `<div class="hm-cell" style="background:rgba(${r},${g},${b},${alpha});color:#fff;border:${border};" title="${OWNEDS[j]}% owned · ${u}% util → ${lbl}">${lbl}</div>`;
+    }
+    html += '</div>';
+  }
+
+  // Legend
+  html += `<div style="display:flex;align-items:center;gap:8px;margin-top:10px;margin-left:36px;font-size:10px;color:var(--text-dim);">
+    <span>Loss</span>
+    <div style="height:7px;width:160px;background:linear-gradient(to right,rgba(210,50,40,.8),rgba(210,170,40,.8),rgba(50,175,40,.9));"></div>
+    <span>Profit</span>
+  </div>`;
+
+  document.getElementById('heatmap').innerHTML = html;
+}
+
+// ─────────────────────────────────────────────
+// Main update
+// ─────────────────────────────────────────────
+function update() {
+  const p = getP();
+  const m = calc(p);
+
+  // On-demand pill + mix bar
+  const odPct  = Math.round(p.pd * 100);
+  const odGPUs = Math.round(p.tg * p.pd);
+  document.getElementById('od-pill').textContent = `${odPct}% · ${odGPUs} GPUs`;
+  document.getElementById('ms-own').style.flex  = String(Math.max(1, Math.round(p.po * 100)));
+  document.getElementById('ms-rent').style.flex = String(Math.max(1, Math.round(p.pr * 100)));
+  document.getElementById('ms-od').style.flex   = String(Math.max(1, odPct));
+
+  // Rate warning
+  document.getElementById('rate-warn').style.display = p.br <= p.od ? 'block' : 'none';
+
+  // Metric strip
+  document.getElementById('m-rev').textContent    = fmFull(m.rev);
+  document.getElementById('m-profit').textContent = fmFull(m.profit);
+  document.getElementById('m-annual').textContent = fmFull(m.annualProfit);
+
+  const profMC = document.getElementById('profit-mc');
+  profMC.className = 'mc ' + (m.profit >= 0 ? 'positive highlight' : 'negative');
+
+  const marginEl = document.getElementById('m-margin');
+  marginEl.textContent = isFinite(m.margin) ? `${m.margin.toFixed(1)}% margin` : '—';
+  marginEl.style.color = m.margin >= 0 ? 'var(--green)' : 'var(--red)';
+
+  const bePct = m.be * 100;
+  document.getElementById('m-be').textContent = bePct <= 100 ? `${bePct.toFixed(1)}%` : 'Never';
+
+  const cushion = p.ut * 100 - bePct;
+  const cushEl = document.getElementById('m-cushion');
+  if (bePct <= 100) {
+    cushEl.textContent = `${cushion >= 0 ? '+' : ''}${cushion.toFixed(1)}pp cushion`;
+    cushEl.style.color = cushion >= 0 ? 'var(--green)' : 'var(--red)';
+  } else {
+    cushEl.textContent = '';
+  }
+
+  document.getElementById('m-cap').textContent = fm(m.capital);
+  document.getElementById('exp-label').textContent = `Max Exposure (${p.hz}mo)`;
+  document.getElementById('m-exp').textContent = fm(m.maxExposure * p.hz);
+
+  // Per-GPU
+  document.getElementById('g-rev').textContent  = fmFull(m.revPerGpu);
+  document.getElementById('g-cost').textContent = fmFull(m.costPerGpu);
+  const gp = document.getElementById('g-profit');
+  gp.textContent  = fmFull(m.profitPerGpu);
+  gp.style.color  = m.profitPerGpu >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('g-opex').textContent = fmFull(m.opex);
+
+  // Charts
+  drawUtil(p, m);
+  drawCostBars(m);
+  drawPnL(p, m);
+
+  if (activeTab === 'sensitivity') drawSensitivity(p);
+  if (activeTab === 'risk')        drawRisk(p, m);
+  if (activeTab === 'scenarios')   drawScenarios(p);
+}
+
+function drawSensitivity(p) {
+  drawSensOwned(p);
+  drawSensRate(p);
+  drawHeatmap(p);
+}
+
+// ─────────────────────────────────────────────
+// Slider↔input sync
+// ─────────────────────────────────────────────
+function link(prefix, onChangeCb) {
+  const sl = document.getElementById(prefix + '-sl');
+  const ni = document.getElementById(prefix + '-ni');
+  sl.addEventListener('input', () => { ni.value = sl.value; if (onChangeCb) onChangeCb(); update(); });
+  ni.addEventListener('input', () => {
+    let v = parseFloat(ni.value);
+    if (isNaN(v)) return;
+    v = Math.max(+sl.min, Math.min(+sl.max, v));
+    sl.value = v; ni.value = v;
+    if (onChangeCb) onChangeCb();
+    update();
+  });
+}
+
+function updateRentedMax() {
+  const maxR = 100 - (+document.getElementById('po-ni').value);
+  const sl = document.getElementById('pr-sl');
+  const ni = document.getElementById('pr-ni');
+  sl.max = maxR; ni.max = maxR;
+  if (+ni.value > maxR) { ni.value = maxR; sl.value = maxR; }
+}
+
+// Wire up
+['pp','pw','tg','co','el','dp','rp','od','br','ut','hz'].forEach(k => link(k));
+link('po', updateRentedMax);
+link('pr');
+
+// GPU select
+document.getElementById('gpu-select').addEventListener('change', function () {
+  const s = CATALOG[this.value]; if (!s) return;
+  setF('pp', s.pp); setF('pw', s.pw);
+  setF('rp', s.rp); setF('od', s.od); setF('br', s.br);
+  update();
+});
+
+function setF(k, val) {
+  const sl = document.getElementById(k + '-sl');
+  const ni = document.getElementById(k + '-ni');
+  const clamped = Math.max(+sl.min, Math.min(+sl.max, val));
+  sl.value = clamped; ni.value = val;
+}
+
+// ─────────────────────────────────────────────
+// Tab switching
+// ─────────────────────────────────────────────
+let activeTab = 'dashboard';
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', function () {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    activeTab = this.dataset.tab;
+    document.getElementById('panel-' + activeTab).classList.add('active');
+    if (activeTab === 'sensitivity') drawSensitivity(getP());
+    if (activeTab === 'risk')        { const pp=getP(); drawRisk(pp, calc(pp)); }
+    if (activeTab === 'scenarios')   drawScenarios(getP());
+  });
+});
+
+// Scenario checkbox listeners
+document.querySelectorAll('.sc-cb').forEach(cb => {
+  cb.addEventListener('change', () => { if (activeTab === 'scenarios') drawScenarios(getP()); });
+});
+
+// ─────────────────────────────────────────────
+// Donut helper
+// ─────────────────────────────────────────────
+function donutPaths(segs, cx, cy, R, r) {
+  const total = segs.reduce((s, sg) => s + sg.v, 0);
+  if (!total) return '';
+  let a = -Math.PI / 2, out = '';
+  const fp = v => v.toFixed(1);
+  for (const sg of segs) {
+    if (!sg.v) continue;
+    const sw = sg.v / total * 2 * Math.PI;
+    const ea = a + sw, la = sw > Math.PI ? 1 : 0;
+    out += `<path d="M${fp(cx+R*Math.cos(a))},${fp(cy+R*Math.sin(a))} A${R},${R} 0 ${la},1 ${fp(cx+R*Math.cos(ea))},${fp(cy+R*Math.sin(ea))} L${fp(cx+r*Math.cos(ea))},${fp(cy+r*Math.sin(ea))} A${r},${r} 0 ${la},0 ${fp(cx+r*Math.cos(a))},${fp(cy+r*Math.sin(a))} Z" fill="${sg.c}" opacity=".88"/>`;
+    if (sw > 0.35) {
+      const ma = a + sw/2, lr = (R+r)/2;
+      out += `<text x="${fp(cx+lr*Math.cos(ma))}" y="${fp(cy+lr*Math.sin(ma))}" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="11" font-family="'IBM Plex Mono',monospace">${(sg.v/total*100).toFixed(0)}%</text>`;
+    }
+    a = ea;
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────
+// Generic SVG bar chart helper
+// ─────────────────────────────────────────────
+function svgBars(svgId, bars, W, H, PAD, rotateLabels) {
+  const svg = document.getElementById(svgId);
+  if (!svg || !bars.length) { if(svg) svg.innerHTML=''; return; }
+  const cW = W-PAD.l-PAD.r, cH = H-PAD.t-PAD.b;
+  const n = bars.length;
+  const bW = cW/n * 0.66, gap = cW/n;
+  const vals = bars.map(b => b.value);
+  const yMin = Math.min(0,...vals), yMax = Math.max(0,...vals), yRange = yMax-yMin || 1;
+  const ys = y => PAD.t + cH - ((y-yMin)/yRange)*cH;
+  const xs = i => PAD.l + gap*i + gap*0.17;
+  const zero = ys(0);
+
+  let bHtml='', yAxis='', xAxis='';
+  bars.forEach((b, i) => {
+    const yTop = ys(Math.max(0,b.value)), yBot = ys(Math.min(0,b.value));
+    bHtml += `<rect x="${xs(i).toFixed(1)}" y="${yTop.toFixed(1)}" width="${bW.toFixed(1)}" height="${(yBot-yTop).toFixed(1)}" fill="${b.color}" opacity=".85"/>`;
+    const valY = b.value >= 0 ? yTop-5 : yBot+11;
+    bHtml += `<text x="${(xs(i)+bW/2).toFixed(1)}" y="${valY.toFixed(1)}" text-anchor="middle" fill="${b.color}" font-size="9" font-family="'IBM Plex Mono',monospace">${fm(b.value)}</text>`;
+    const lx = (xs(i)+bW/2).toFixed(1), ly = (PAD.t+cH+13).toFixed(1);
+    xAxis += rotateLabels
+      ? `<text x="${lx}" y="${ly}" text-anchor="end" fill="var(--text-dim)" font-size="9" font-family="'IBM Plex Sans',sans-serif" transform="rotate(-28,${lx},${ly})">${b.label}</text>`
+      : `<text x="${lx}" y="${ly}" text-anchor="middle" fill="var(--text-dim)" font-size="9" font-family="'IBM Plex Mono',monospace">${b.label}</text>`;
+  });
+  for (let i=0; i<=4; i++) {
+    const yv = yMin+yRange*(i/4), yp = ys(yv).toFixed(1);
+    yAxis += `<line x1="${PAD.l}" x2="${PAD.l+cW}" y1="${yp}" y2="${yp}" stroke="var(--border)" stroke-opacity=".5"/>`;
+    yAxis += `<text x="${PAD.l-6}" y="${yp}" text-anchor="end" dominant-baseline="middle" fill="var(--text-dim)" font-size="10" font-family="'IBM Plex Mono',monospace">${fm(yv)}</text>`;
+  }
+  svg.innerHTML = `
+    <defs><clipPath id="cp-${svgId}"><rect x="${PAD.l}" y="${PAD.t}" width="${cW}" height="${cH}"/></clipPath></defs>
+    <g clip-path="url(#cp-${svgId})">${bHtml}${zero>=PAD.t&&zero<=PAD.t+cH?`<line x1="${PAD.l}" x2="${PAD.l+cW}" y1="${zero}" y2="${zero}" stroke="var(--border2)"/>`:''}
+    </g>${yAxis}${xAxis}
+    <line x1="${PAD.l}" x2="${PAD.l}" y1="${PAD.t}" y2="${PAD.t+cH}" stroke="var(--border2)"/>
+    <line x1="${PAD.l}" x2="${PAD.l+cW}" y1="${PAD.t+cH}" y2="${PAD.t+cH}" stroke="var(--border2)"/>`;
+}
+
+// ─────────────────────────────────────────────
+// Risk tab
+// ─────────────────────────────────────────────
+function drawRisk(p, m) {
+  // 6 risk metric cards
+  const bePct = m.be * 100;
+  const cushion = p.ut*100 - bePct;
+  const roi = m.capital > 0 ? (m.annualProfit / m.capital * 100) : null;
+  const riskMetrics = [
+    { lbl:'Break-even Util.',     val: bePct<=100 ? `${bePct.toFixed(1)}%` : 'Never',       col: bePct<=p.ut*100 ? 'var(--green)' : 'var(--red)' },
+    { lbl:'Cushion vs. B/E',      val: bePct<=100 ? `${cushion>=0?'+':''}${cushion.toFixed(1)}pp` : 'N/A', col: cushion>=0 ? 'var(--green)' : 'var(--red)' },
+    { lbl:`Max Exp (${p.hz}mo)`,  val: fm(m.maxExposure * p.hz),                             col: 'var(--red)' },
+    { lbl:'Capital at Risk',      val: fm(m.capital),                                        col: 'var(--amber)' },
+    { lbl:'Payback Period',       val: isFinite(m.payback) ? `${m.payback.toFixed(1)} mo` : 'N/A', col: 'var(--text-bright)' },
+    { lbl:'Annual ROI (owned)',   val: roi !== null ? `${roi.toFixed(1)}%` : 'N/A',           col: roi > 0 ? 'var(--green)' : 'var(--red)' },
+  ];
+  document.getElementById('risk-metrics').innerHTML = riskMetrics.map(rm =>
+    `<div class="risk-mc"><div class="risk-mc-lbl">${rm.lbl}</div><div class="risk-mc-val" style="color:${rm.col}">${rm.val}</div></div>`
+  ).join('');
+
+  // Exposure donut
+  const segs = [
+    { v: m.ownedCost, c: 'var(--blue)',   lbl: 'Owned' },
+    { v: m.rentCost,  c: 'var(--purple)', lbl: 'Rented' },
+  ].filter(s => s.v > 0);
+  const fp = v => v.toFixed(1);
+  let legend = segs.map((sg, i) =>
+    `<text x="270" y="${36+i*22}" fill="${sg.c}" font-size="11" font-family="'IBM Plex Mono',monospace">▪ ${sg.lbl}: ${fmFull(sg.v)}/mo</text>`
+  ).join('');
+  legend += `<text x="270" y="${36+segs.length*22+14}" fill="var(--text-dim)" font-size="10" font-family="'IBM Plex Sans',sans-serif">at 0% utilization</text>`;
+  document.getElementById('exp-donut').innerHTML = `
+    ${donutPaths(segs, 125, 95, 72, 38)}
+    <text x="125" y="89" text-anchor="middle" fill="var(--text-dim)" font-size="9" font-family="'IBM Plex Mono',monospace">TOTAL/MO</text>
+    <text x="125" y="105" text-anchor="middle" fill="var(--text-bright)" font-size="15" font-weight="bold" font-family="'IBM Plex Mono',monospace">${fm(m.maxExposure)}</text>
+    ${legend}`;
+
+  // Stacked bar: exposure vs % owned
+  const pts = [];
+  for (let own=0; own<=100; own+=5) {
+    const rent = Math.min(100-own, Math.round(p.pr*100));
+    const mm = calc({...p, po:own/100, pr:rent/100, pd:Math.max(0,100-own-rent)/100});
+    pts.push({ own, oc: mm.ownedCost, rc: mm.rentCost });
+  }
+  const W=500, H=190, PAD2={t:10,r:10,b:28,l:68};
+  const cW2=W-PAD2.l-PAD2.r, cH2=H-PAD2.t-PAD2.b;
+  const n2=pts.length, bW2=cW2/n2*0.72, gap2=cW2/n2;
+  const maxY2 = Math.max(...pts.map(pt=>pt.oc+pt.rc)) || 1;
+  const ys2 = y => PAD2.t+cH2-(y/maxY2)*cH2;
+  const xs2 = i => PAD2.l+gap2*i+gap2*0.14;
+  const curI = pts.findIndex(pt => pt.own === 5*Math.round(p.po*100/5));
+  let bars2='', yAxis2='', xAxis2='';
+  pts.forEach((pt, i) => {
+    const yMid=ys2(pt.rc), yTop=ys2(pt.oc+pt.rc), yBot=PAD2.t+cH2;
+    if (pt.rc>0) bars2+=`<rect x="${xs2(i).toFixed(1)}" y="${fp(yMid)}" width="${bW2.toFixed(1)}" height="${fp(yBot-yMid)}" fill="var(--purple)" opacity=".8"/>`;
+    if (pt.oc>0) bars2+=`<rect x="${xs2(i).toFixed(1)}" y="${fp(yTop)}" width="${bW2.toFixed(1)}" height="${fp(yMid-yTop)}" fill="var(--blue)" opacity=".8"/>`;
+    if (pt.own%20===0) xAxis2+=`<text x="${fp(xs2(i)+bW2/2)}" y="${PAD2.t+cH2+17}" text-anchor="middle" fill="var(--text-dim)" font-size="9" font-family="'IBM Plex Mono',monospace">${pt.own}%</text>`;
+  });
+  if (curI>=0) { const cx2=xs2(curI)+bW2/2; bars2+=`<line x1="${fp(cx2)}" x2="${fp(cx2)}" y1="${PAD2.t}" y2="${PAD2.t+cH2}" stroke="rgba(255,255,255,.35)" stroke-width="1.5" stroke-dasharray="3 3"/>`; }
+  for (let i=0;i<=4;i++) {
+    const yv=maxY2*i/4, yp=fp(ys2(yv));
+    yAxis2+=`<line x1="${PAD2.l}" x2="${PAD2.l+cW2}" y1="${yp}" y2="${yp}" stroke="var(--border)" stroke-opacity=".5"/>`;
+    yAxis2+=`<text x="${PAD2.l-6}" y="${yp}" text-anchor="end" dominant-baseline="middle" fill="var(--text-dim)" font-size="9" font-family="'IBM Plex Mono',monospace">${fm(yv)}</text>`;
+  }
+  document.getElementById('exp-vs-owned').innerHTML = `
+    <defs><clipPath id="cpevo"><rect x="${PAD2.l}" y="${PAD2.t}" width="${cW2}" height="${cH2}"/></clipPath></defs>
+    <g clip-path="url(#cpevo)">${bars2}</g>${yAxis2}${xAxis2}
+    <line x1="${PAD2.l}" x2="${PAD2.l}" y1="${PAD2.t}" y2="${PAD2.t+cH2}" stroke="var(--border2)"/>
+    <line x1="${PAD2.l}" x2="${PAD2.l+cW2}" y1="${PAD2.t+cH2}" y2="${PAD2.t+cH2}" stroke="var(--border2)"/>`;
+
+  // Downside scenarios table
+  const downScens = [
+    { name:'Bull (+20% demand, +10% price)', ut:Math.min(1,p.ut*1.2), br:p.br*1.10 },
+    { name:'Base Case',                      ut:p.ut,                  br:p.br      },
+    { name:'Bear — Demand −20%',             ut:p.ut*0.8,              br:p.br      },
+    { name:'Bear — Price −20%',              ut:p.ut,                  br:p.br*0.80 },
+    { name:'Stress — Demand −30%, Price −15%', ut:p.ut*0.7,           br:p.br*0.85 },
+    { name:'Worst — Demand −50%, Price −30%',  ut:p.ut*0.5,           br:p.br*0.70 },
+  ];
+  const dsRows = downScens.map(s => {
+    const mm = calc({...p, ut:s.ut, br:s.br});
+    const be = mm.be * 100;
+    return { ...s, mm, be, beD: be<=100?`${be.toFixed(1)}%`:'Never' };
+  });
+  document.getElementById('downside-table').innerHTML = `
+    <table class="pnl-table">
+      <thead><tr>
+        <th>Scenario</th><th class="col-r">Util</th><th class="col-r">Rate</th>
+        <th class="col-r">Revenue</th><th class="col-r">Profit</th>
+        <th class="col-r">Margin</th><th class="col-r">Max Exp (${p.hz}mo)</th>
+        <th class="col-r">B/E</th><th class="col-r"></th>
+      </tr></thead>
+      <tbody>${dsRows.map(r=>`<tr>
+        <td>${r.name}</td>
+        <td class="col-r c-dim">${(r.ut*100).toFixed(0)}%</td>
+        <td class="col-r c-dim">$${r.br.toFixed(2)}</td>
+        <td class="col-r">${fmFull(r.mm.rev)}</td>
+        <td class="col-r ${r.mm.profit>=0?'c-pos':'c-neg'}">${fmFull(r.mm.profit)}</td>
+        <td class="col-r c-dim">${isFinite(r.mm.margin)?r.mm.margin.toFixed(1)+'%':'—'}</td>
+        <td class="col-r c-dim">${fmFull(r.mm.maxExposure*p.hz)}</td>
+        <td class="col-r c-dim">${r.beD}</td>
+        <td class="col-r">${r.mm.profit>0?'✅':'❌'}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+
+  // Cumulative P&L
+  const Wc=760, Hc=245, PADc={t:14,r:20,b:34,l:72};
+  const cWc=Wc-PADc.l-PADc.r, cHc=Hc-PADc.t-PADc.b;
+  const months = Array.from({length:p.hz},(_,i)=>i+1);
+  const cumP = months.map(mo=>mo*m.profit);
+  const cumN = months.map(mo=>mo*m.profit-m.capital);
+  const allYc=[...cumP,...(m.capital>0?cumN:[])];
+  const yMinC=Math.min(0,...allYc)*1.05, yMaxC=Math.max(0,...allYc)*1.08, yRangeC=yMaxC-yMinC||1;
+  const xsc = mo=>PADc.l+((mo-1)/Math.max(1,p.hz-1))*cWc;
+  const ysc = y=>PADc.t+cHc-((y-yMinC)/yRangeC)*cHc;
+  const pathP2=months.map((mo,i)=>`${i?'L':'M'}${fp(xsc(mo))},${fp(ysc(cumP[i]))}`).join('');
+  const pathN2=months.map((mo,i)=>`${i?'L':'M'}${fp(xsc(mo))},${fp(ysc(cumN[i]))}`).join('');
+  const areaP2=pathP2+` L${fp(xsc(p.hz))},${fp(ysc(0))} L${fp(xsc(1))},${fp(ysc(0))} Z`;
+  const zeroc=ysc(0);
+  let pbLine='';
+  if (m.profit>0&&m.capital>0) { const pb=m.capital/m.profit; if(pb<=p.hz){const pbX=fp(xsc(pb)); pbLine=`<line x1="${pbX}" x2="${pbX}" y1="${PADc.t}" y2="${PADc.t+cHc}" stroke="var(--amber)" stroke-width="1" stroke-dasharray="4 3"/><text x="${pbX}" y="${PADc.t+11}" text-anchor="middle" fill="var(--amber)" font-size="9" font-family="'IBM Plex Mono',monospace">Payback mo ${pb.toFixed(1)}</text>`;}}
+  let yAxisC='', xAxisC='';
+  for(let i=0;i<=4;i++){const yv=yMinC+yRangeC*(i/4),yp=fp(ysc(yv));yAxisC+=`<line x1="${PADc.l}" x2="${PADc.l+cWc}" y1="${yp}" y2="${yp}" stroke="var(--border)" stroke-opacity=".5"/><text x="${PADc.l-6}" y="${yp}" text-anchor="end" dominant-baseline="middle" fill="var(--text-dim)" font-size="10" font-family="'IBM Plex Mono',monospace">${fm(yv)}</text>`;}
+  const stepC=Math.max(1,Math.round(p.hz/6));
+  for(let mo=1;mo<=p.hz;mo+=stepC) xAxisC+=`<text x="${fp(xsc(mo))}" y="${PADc.t+cHc+20}" text-anchor="middle" fill="var(--text-dim)" font-size="10" font-family="'IBM Plex Mono',monospace">mo ${mo}</text>`;
+  document.getElementById('cum-pnl').innerHTML=`
+    <defs><clipPath id="cpcum"><rect x="${PADc.l}" y="${PADc.t}" width="${cWc}" height="${cHc}"/></clipPath></defs>
+    <g clip-path="url(#cpcum)">
+      <path d="${areaP2}" fill="rgba(61,214,140,0.07)"/>
+      <path d="${pathP2}" fill="none" stroke="var(--green)" stroke-width="2"/>
+      ${m.capital>0?`<path d="${pathN2}" fill="none" stroke="var(--blue)" stroke-width="1.5" stroke-dasharray="5 4"/>`:''}
+      ${zeroc>=PADc.t&&zeroc<=PADc.t+cHc?`<line x1="${PADc.l}" x2="${PADc.l+cWc}" y1="${zeroc}" y2="${zeroc}" stroke="var(--border2)"/>`:''}
+      ${pbLine}
+    </g>${yAxisC}${xAxisC}
+    <line x1="${PADc.l}" x2="${PADc.l}" y1="${PADc.t}" y2="${PADc.t+cHc}" stroke="var(--border2)"/>
+    <line x1="${PADc.l}" x2="${PADc.l+cWc}" y1="${PADc.t+cHc}" y2="${PADc.t+cHc}" stroke="var(--border2)"/>`;
+}
+
+// ─────────────────────────────────────────────
+// Scenarios tab
+// ─────────────────────────────────────────────
+const SC_COLORS = ['#4a9eff','#a78bfa','#f5a623','#3dd68c','#06b6d4','#f59e0b','#ec4899','#f5453d'];
+
+const PRESETS = [
+  { name:'All Owned',          po:100, pr:  0 },
+  { name:'All Rented',         po:  0, pr:100 },
+  { name:'Asset-Light',        po:  0, pr:  0 },
+  { name:'Balanced Mix',       po: 50, pr: 30 },
+  { name:'Base-load + Burst',  po: 60, pr: 20 },
+  { name:'Rental + Overflow',  po:  0, pr: 80 },
+  { name:'Majority On-Demand', po: 20, pr: 20 },
+  { name:'Current Settings',   po: -1, pr: -1 },
+];
+
+function getActivePresets(p) {
+  return Array.from(document.querySelectorAll('.sc-cb:checked')).map(cb => {
+    const idx = +cb.value, pr = PRESETS[idx];
+    const po = pr.po < 0 ? p.po*100 : pr.po;
+    const prr = pr.pr < 0 ? p.pr*100 : pr.pr;
+    const pd = Math.max(0, 100-po-prr);
+    return { name: pr.name, po: po/100, pr: prr/100, pd: pd/100, color: SC_COLORS[idx] };
+  });
+}
+
+function drawScenarios(p) {
+  const active = getActivePresets(p);
+  if (!active.length) {
+    ['scenario-table','sc-profit-bar','sc-exp-bar','sc-util','sc-legend'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:12px 0;">Select at least one scenario.</div>';
+    });
+    return;
+  }
+
+  const rows = active.map(sc => {
+    const mm = calc({...p, po:sc.po, pr:sc.pr, pd:sc.pd});
+    const be = mm.be * 100;
+    return { ...sc, mm, mix:`${Math.round(sc.po*100)}/${Math.round(sc.pr*100)}/${Math.round(sc.pd*100)}`,
+      be, beD: be<=100?`${be.toFixed(1)}%`:'Never', payback: isFinite(mm.payback)?mm.payback.toFixed(1):'N/A' };
+  });
+
+  // Comparison table
+  document.getElementById('scenario-table').innerHTML = `
+    <table class="pnl-table">
+      <thead><tr>
+        <th>Scenario</th><th>Mix O/R/OD</th>
+        <th class="col-r">Monthly Profit</th><th class="col-r">Margin</th>
+        <th class="col-r">Break-even</th><th class="col-r">Max Exp (${p.hz}mo)</th>
+        <th class="col-r">Capital Risk</th><th class="col-r">Payback (mo)</th>
+      </tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td><span style="color:${r.color};margin-right:6px;">▪</span>${r.name}</td>
+        <td style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-dim);">${r.mix}</td>
+        <td class="col-r ${r.mm.profit>=0?'c-pos':'c-neg'}">${fmFull(r.mm.profit)}</td>
+        <td class="col-r c-dim">${isFinite(r.mm.margin)?r.mm.margin.toFixed(1)+'%':'—'}</td>
+        <td class="col-r c-dim">${r.beD}</td>
+        <td class="col-r c-dim">${fmFull(r.mm.maxExposure*p.hz)}</td>
+        <td class="col-r c-dim">${fmFull(r.mm.capital)}</td>
+        <td class="col-r c-dim">${r.payback}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+
+  // Bar charts
+  svgBars('sc-profit-bar', rows.map(r=>({ label:r.name, value:r.mm.profit, color:r.mm.profit>=0?r.color:'var(--red)' })), 500, 245, {t:24,r:12,b:62,l:70}, true);
+  svgBars('sc-exp-bar',    rows.map(r=>({ label:r.name, value:r.mm.maxExposure*p.hz, color:r.color })), 500, 245, {t:24,r:12,b:62,l:70}, true);
+
+  // Multi-line util curves
+  const Ws=880, Hs=260, PADs={t:14,r:20,b:34,l:72};
+  const cWs=Ws-PADs.l-PADs.r, cHs=Hs-PADs.t-PADs.b;
+  const curves = rows.map(r => {
+    const pts=[];
+    for(let u=0;u<=100;u++){const mm=calc({...p,po:r.po,pr:r.pr,pd:r.pd,ut:u/100});pts.push({u,profit:mm.profit});}
+    return {...r, pts};
+  });
+  const allY2=curves.flatMap(c=>c.pts.map(pt=>pt.profit));
+  const yMins=Math.min(0,...allY2)*1.05, yMaxs=Math.max(0,...allY2)*1.08, yRanges=yMaxs-yMins||1;
+  const xss=u=>PADs.l+(u/100)*cWs, yss=y=>PADs.t+cHs-((y-yMins)/yRanges)*cHs;
+  const fp2=v=>v.toFixed(1);
+  let pathsSc='', yAxisSc='', xAxisSc='';
+  curves.forEach(c=>{ pathsSc+=`<path d="${c.pts.map((pt,i)=>`${i?'L':'M'}${fp2(xss(pt.u))},${fp2(yss(pt.profit))}`).join('')}" fill="none" stroke="${c.color}" stroke-width="2"/>`; });
+  const utX=fp2(xss(p.ut*100));
+  pathsSc+=`<line x1="${utX}" x2="${utX}" y1="${PADs.t}" y2="${PADs.t+cHs}" stroke="rgba(255,255,255,.2)" stroke-width="1" stroke-dasharray="3 3"/>`;
+  pathsSc+=`<text x="${utX}" y="${PADs.t+10}" text-anchor="middle" fill="rgba(255,255,255,.35)" font-size="9" font-family="'IBM Plex Mono',monospace">▶ ${(p.ut*100).toFixed(0)}%</text>`;
+  const zeroS=yss(0);
+  for(let i=0;i<=5;i++){const yv=yMins+yRanges*(i/5),yp=fp2(yss(yv));yAxisSc+=`<line x1="${PADs.l}" x2="${PADs.l+cWs}" y1="${yp}" y2="${yp}" stroke="var(--border)" stroke-opacity=".5"/><text x="${PADs.l-6}" y="${yp}" text-anchor="end" dominant-baseline="middle" fill="var(--text-dim)" font-size="10" font-family="'IBM Plex Mono',monospace">${fm(yv)}</text>`;}
+  for(let u=0;u<=100;u+=20) xAxisSc+=`<text x="${fp2(xss(u))}" y="${PADs.t+cHs+20}" text-anchor="middle" fill="var(--text-dim)" font-size="10" font-family="'IBM Plex Mono',monospace">${u}%</text>`;
+  document.getElementById('sc-util').innerHTML=`
+    <defs><clipPath id="cpsc"><rect x="${PADs.l}" y="${PADs.t}" width="${cWs}" height="${cHs}"/></clipPath></defs>
+    <g clip-path="url(#cpsc)">${pathsSc}${zeroS>=PADs.t&&zeroS<=PADs.t+cHs?`<line x1="${PADs.l}" x2="${PADs.l+cWs}" y1="${zeroS}" y2="${zeroS}" stroke="var(--border2)"/>`:''}
+    </g>${yAxisSc}${xAxisSc}
+    <line x1="${PADs.l}" x2="${PADs.l}" y1="${PADs.t}" y2="${PADs.t+cHs}" stroke="var(--border2)"/>
+    <line x1="${PADs.l}" x2="${PADs.l+cWs}" y1="${PADs.t+cHs}" y2="${PADs.t+cHs}" stroke="var(--border2)"/>`;
+  document.getElementById('sc-legend').innerHTML = rows.map(r=>`<span style="color:${r.color};">── ${r.name}</span>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────
+update();
+</script>
+</body>
+</html>
